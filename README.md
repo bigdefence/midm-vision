@@ -3,6 +3,10 @@
 - **Midm-Vision**은 Midm-Vision은 한국어 이미지 인식에 특화된 고성능, 경량 Vision-Language Model입니다. K-intelligence/Midm-2.0-Mini-Instruct 기반으로 구축되어 한국어 텍스트가 포함된 이미지 이해와 한국어 응답 생성에 최적화되었습니다.
 - **End-to-End** LLaVA 구조를 채택하여 이미지 입력부터 텍스트 출력까지 하나의 파이프라인에서 처리하며, 추가적인 중간 모델 없이 자연스럽게 멀티모달 처리를 지원합니다.
 
+<img width="1078" height="95" alt="화면 캡처 2025-08-27 164240" src="https://github.com/user-attachments/assets/b895b7bc-ef40-4771-9ff6-544ee4360464" />
+
+
+
 ### 📂 모델 접근
 - **GitHub**: [bigdefence/midm-vision](https://github.com/bigdefence/midm-vision) 🌐
 - **HuggingFace**: [bigdefence/Midm-Vision](https://huggingface.co/bigdefence/Midm-Vision) 🤗

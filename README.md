@@ -37,6 +37,8 @@
 
 2. **의존성 설치**:
    ```bash
+   conda create -n midm-vision python=3.10 -y
+   conda activate midm-vision
    pip install -e .
    ```
 

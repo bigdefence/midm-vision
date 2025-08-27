@@ -1,15 +1,14 @@
 ## 📊 Midm-Vision
 
-- **Midm-Vision**은 Midm-Vision은 한국어 이미지 인식에 특화된 고성능, 경량 Vision-Language Model입니다. K-intelligence/Midm-2.0-Mini-Instruct 기반으로 구축되어 한국어 텍스트가 포함된 이미지 이해와 한국어 응답 생성에 최적화되었습니다.
+- **Midm-2.0-Mini-Vision-Instruct**은 Midm-2.0-Mini-Vision-Instruct은 한국어 이미지 인식에 특화된 고성능, 경량 Vision-Language Model입니다. K-intelligence/Midm-2.0-Mini-Instruct 기반으로 구축되어 한국어 텍스트가 포함된 이미지 이해와 한국어 응답 생성에 최적화되었습니다.
 - **End-to-End** LLaVA 구조를 채택하여 이미지 입력부터 텍스트 출력까지 하나의 파이프라인에서 처리하며, 추가적인 중간 모델 없이 자연스럽게 멀티모달 처리를 지원합니다.
 
-<img width="1078" height="95" alt="화면 캡처 2025-08-27 164240" src="https://github.com/user-attachments/assets/b895b7bc-ef40-4771-9ff6-544ee4360464" />
 
-
+![image/png](https://cdn-uploads.huggingface.co/production/uploads/653494138bde2fae198fe89e/NAGzLbylQfYIJN-JI4NBN.png)
 
 ### 📂 모델 접근
 - **GitHub**: [bigdefence/midm-vision](https://github.com/bigdefence/midm-vision) 🌐
-- **HuggingFace**: [bigdefence/Midm-Vision](https://huggingface.co/bigdefence/Midm-Vision) 🤗
+- **HuggingFace**: [bigdefence/Midm-2.0-Mini-Vision-Instruct](https://huggingface.co/bigdefence/Midm-2.0-Mini-Vision-Instruct) 🤗
 - **모델 크기**: 2B 파라미터 📊
 
 ## 🌟 주요 특징
@@ -31,7 +30,7 @@
 
 ### 🔧 레포지토리 다운로드 및 환경 설정
 
-**Midm-Vision**을 시작하려면 다음과 같이 레포지토리를 클론하고 환경을 설정하세요. 🛠️
+**Midm-2.0-Mini-Vision-Instruct**을 시작하려면 다음과 같이 레포지토리를 클론하고 환경을 설정하세요. 🛠️
 
 1. **레포지토리 클론**:
    ```bash
@@ -78,7 +77,7 @@ git clone https://huggingface.co/bigdefence/midm-vision
 **Midm-Vision**으로 추론을 수행하려면 다음 단계를 따라 모델을 설정하고 로컬에서 실행하세요. 📡
 
 1. **모델 준비**:
-   - [HuggingFace](https://huggingface.co/bigdefence/Midm-Vision)에서 **Midm-Vision** 다운로드 📦
+   - [HuggingFace](https://huggingface.co/bigdefence/Midm-2.0-Mini-Vision-Instruct)에서 **Midm-2.0-Mini-Vision-Instruct** 다운로드 📦
 
 2. **추론 실행**:
      - **Streaming**

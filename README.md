@@ -1,4 +1,4 @@
-## 📊 Midm-Vision
+## 📊 Midm-2.0-Mini-Vision-Instruct
 
 - **Midm-2.0-Mini-Vision-Instruct**은 Midm-2.0-Mini-Vision-Instruct은 한국어 이미지 인식에 특화된 고성능, 경량 Vision-Language Model입니다. K-intelligence/Midm-2.0-Mini-Instruct 기반으로 구축되어 한국어 텍스트가 포함된 이미지 이해와 한국어 응답 생성에 최적화되었습니다.
 - **End-to-End** LLaVA 구조를 채택하여 이미지 입력부터 텍스트 출력까지 하나의 파이프라인에서 처리하며, 추가적인 중간 모델 없이 자연스럽게 멀티모달 처리를 지원합니다.

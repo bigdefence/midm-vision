@@ -1,10 +1,7 @@
-## Midm-Vision
+## 📊 Midm-Vision
 
-- **Midm-Vision**은 한국어 이미지 인식에 특화된 고성능, 저지연 이미지 멀티모달 모델입니다. [K-intelligence/Midm-2.0-Mini-Instruct](https://huggingface.co/K-intelligence/Midm-2.0-Mini-Instruct) 기반으로 구축되었습니다. 🚀
-- **End-to-End** 음성 멀티모달 구조를 채택하여 음성 입력부터 텍스트 출력까지 하나의 파이프라인에서 처리하며, 추가적인 중간 모델 없이 자연스럽게 멀티모달 처리를 지원합니다.
-
-
-![image/png](https://cdn-uploads.huggingface.co/production/uploads/653494138bde2fae198fe89e/lpKXgUWIh7USbCOgSii-_.png)
+- **Midm-Vision**은 Midm-Vision은 한국어 이미지 인식에 특화된 고성능, 경량 Vision-Language Model입니다. K-intelligence/Midm-2.0-Mini-Instruct 기반으로 구축되어 한국어 텍스트가 포함된 이미지 이해와 한국어 응답 생성에 최적화되었습니다.
+- **End-to-End** LLaVA 구조를 채택하여 이미지 입력부터 텍스트 출력까지 하나의 파이프라인에서 처리하며, 추가적인 중간 모델 없이 자연스럽게 멀티모달 처리를 지원합니다.
 
 ### 📂 모델 접근
 - **GitHub**: [bigdefence/midm-vision](https://github.com/bigdefence/midm-vision) 🌐
@@ -30,7 +27,7 @@
 
 ### 🔧 레포지토리 다운로드 및 환경 설정
 
-**Bigvox**을 시작하려면 다음과 같이 레포지토리를 클론하고 환경을 설정하세요. 🛠️
+**Midm-Vision**을 시작하려면 다음과 같이 레포지토리를 클론하고 환경을 설정하세요. 🛠️
 
 1. **레포지토리 클론**:
    ```bash
@@ -98,5 +95,3 @@ git clone https://huggingface.co/bigdefence/midm-vision
 ## 📞 문의사항
 
 - **개발**: BigDefence
-
-

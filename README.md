@@ -43,6 +43,7 @@
    conda create -n midm-vision python=3.10 -y
    conda activate midm-vision
    pip install -e .
+   pip install flash-attn==2.5.2 --no-build-isolation
    ```
 
 ### 📥 다운로드 방법

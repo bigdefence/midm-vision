@@ -1,20 +1,17 @@
 import argparse
+import re
 import torch
+import requests
+from io import BytesIO
+
+from PIL import Image
+from transformers import CLIPImageProcessor, TextStreamer
 
 from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
-from llava.conversation import conv_templates, SeparatorStyle
+from llava.conversation import conv_templates
 from llava.model.builder import load_pretrained_model
 from llava.utils import disable_torch_init
 from llava.mm_utils import process_images, tokenizer_image_token, get_model_name_from_path, KeywordsStoppingCriteria
-
-from PIL import Image
-import re
-from transformers import CLIPImageProcessor
-
-import requests
-from PIL import Image
-from io import BytesIO
-from transformers import TextStreamer
 
 
 def load_image(image_file):
@@ -32,59 +29,98 @@ def main(args):
 
     model_name = get_model_name_from_path(args.model_path)
     tokenizer, model, image_processor, context_len = load_pretrained_model(args.model_path, args.model_base, model_name, args.load_8bit, args.load_4bit, device=args.device)
-    # Ensure pad token is defined to avoid generation warnings
+    
+    # 토큰라이저 패딩 토큰 설정
     if getattr(tokenizer, 'pad_token_id', None) is None:
-        try:
+        if getattr(tokenizer, 'eos_token_id', None) is not None:
+            tokenizer.pad_token_id = tokenizer.eos_token_id
+        elif hasattr(tokenizer, 'eos_token') and tokenizer.eos_token:
             tokenizer.pad_token = tokenizer.eos_token
-        except Exception:
-            pass
+        else:
+            # Fallback: 일반적인 EOS 토큰 ID 사용
+            tokenizer.pad_token_id = 2  # 대부분 모델에서 </s> 토큰
+    
+    # 비전 타워 강제 초기화 (AttributeError 방지)
+    try:
+        vision_tower = model.get_vision_tower()
+        if vision_tower is not None:
+            if hasattr(vision_tower, 'is_loaded') and not vision_tower.is_loaded:
+                vision_tower.load_model(device_map=args.device)
+            # 비전 타워 내부 모듈 확인 및 초기화
+            if hasattr(vision_tower, 'vision_tower') and vision_tower.vision_tower is None:
+                vision_tower.load_model(device_map=args.device)
+    except Exception as e:
+        print(f"Warning: Vision tower initialization issue: {e}")
 
-    # Fallback: ensure image_processor is available for MIDM/LLaVA
+    # 비전 타워 및 이미지 프로세서 설정
     if image_processor is None:
         try:
+            # 비전 타워 로드 및 초기화
             vision_tower = model.get_vision_tower()
             if hasattr(vision_tower, 'is_loaded') and not vision_tower.is_loaded:
                 vision_tower.load_model(device_map=args.device)
+                
+            # 이미지 프로세서 가져오기
             image_processor = getattr(vision_tower, 'image_processor', None)
-        except Exception:
-            image_processor = None
-    if image_processor is None:
-        mm_vision_tower = getattr(model.config, 'mm_vision_tower', None)
-        if mm_vision_tower:
+            
+            # Fallback to config-based processor
+            if image_processor is None:
+                mm_vision_tower = getattr(model.config, 'mm_vision_tower', None)
+                if mm_vision_tower:
+                    image_processor = CLIPImageProcessor.from_pretrained(mm_vision_tower)
+                    
+            # Final fallback
+            if image_processor is None:
+                image_processor = CLIPImageProcessor.from_pretrained('openai/clip-vit-large-patch14-336')
+                
+        except Exception as e:
+            print(f"Warning: Could not load image processor: {e}")
             try:
-                image_processor = CLIPImageProcessor.from_pretrained(mm_vision_tower)
+                image_processor = CLIPImageProcessor.from_pretrained('openai/clip-vit-large-patch14-336')
             except Exception:
-                image_processor = None
-    if image_processor is None:
-        try:
-            image_processor = CLIPImageProcessor.from_pretrained('openai/clip-vit-large-patch14-336')
-        except Exception:
-            pass
+                print("Failed to load fallback image processor")
+                return
 
-    def _dedupe_numbered_lines(text: str) -> str:
+    def clean_output(text: str) -> str:
+        """출력 텍스트를 깔끔하게 정리"""
+        # 불필요한 마크업 제거
+        cleanup_patterns = [
+            "### assistant", "### Assistant", "### assistance", 
+            "### assidance", "### assisistant", "###"
+        ]
+        for pattern in cleanup_patterns:
+            text = text.replace(pattern, "")
+        
+        # 앞뒤 공백 제거
+        text = text.strip()
+        
+        # 콜론과 공백으로 시작하는 경우 제거
+        if text.startswith(": "):
+            text = text[2:].strip()
+        
+        # 중복된 번호 매기기 제거
         lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
         filtered = []
         seen_cores = set()
         for ln in lines:
             m = re.match(r"^(\d+)[\.)]\s*(.*)$", ln)
             core = m.group(2).strip() if m else ln
-            if core in seen_cores:
-                continue
-            seen_cores.add(core)
-            filtered.append(core)
-        return "\n".join(filtered).strip()
+            if core not in seen_cores:
+                seen_cores.add(core)
+                filtered.append(core)
+        
+        result = "\n".join(filtered).strip()
+        
+        # 첫 번째 완전한 문단만 유지 (긴 반복 방지)
+        paragraphs = result.split('\n\n')
+        if len(paragraphs) > 1:
+            result = paragraphs[0].strip()
+            
+        return result
 
     # Prefer midm conversation template when model/type indicates MIDM
     if ('midm' in model_name.lower()) or (getattr(model.config, 'model_type', '') == 'llava_midm'):
         conv_mode = "midm"
-    elif 'llama-2' in model_name.lower():
-        conv_mode = "llava_llama_2"
-    elif "v1" in model_name.lower():
-        conv_mode = "llava_v1"
-    elif "mpt" in model_name.lower():
-        conv_mode = "mpt"
-    elif "synatra" in model_name.lower():
-        conv_mode = "mistral"
     else:
         conv_mode = "llava_v0"
 
@@ -96,8 +132,6 @@ def main(args):
     conv = conv_templates[args.conv_mode].copy()
     # Display-friendly roles for CLI prompt
     if args.conv_mode == "midm" or "mpt" in model_name.lower():
-        display_roles = ('user', 'assistant')
-    elif "synatra" in model_name.lower():
         display_roles = ('user', 'assistant')
     else:
         display_roles = conv.roles
@@ -121,6 +155,9 @@ def main(args):
 
         print(f"{display_roles[1]}: ", end="")
 
+        # 매 대화마다 새로운 conversation 객체 생성 (이전 대화 누적하지 않음)
+        conv = conv_templates[args.conv_mode].copy()
+        
         if image is not None:
             # first message
             if model.config.mm_use_im_start_end:
@@ -128,9 +165,8 @@ def main(args):
             else:
                 inp = DEFAULT_IMAGE_TOKEN + '\n' + inp
             conv.append_message(conv.roles[0], inp)
-            image = None
         else:
-            # later messages
+            # 이미지 없이 텍스트만 처리
             conv.append_message(conv.roles[0], inp)
         conv.append_message(conv.roles[1], None)
         prompt = conv.get_prompt()
@@ -138,64 +174,35 @@ def main(args):
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).to(model.device)
         attention_mask = torch.ones_like(input_ids)
         
-        # ### 키워드로 생성 중단 설정
-        stop_str = "###"
-        keywords = [stop_str]
-        stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
-        
+        # 텍스트 생성 설정
+        stopping_criteria = KeywordsStoppingCriteria(["###"], tokenizer, input_ids)
         streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 
-        # Use EOS tokens for MIDM/MPT-style templates to terminate generation
-        # 강력한 반복 방지와 조기 종료 설정
-        gen_kwargs = dict(
-            inputs=input_ids,
-            attention_mask=attention_mask,
-            images=image_tensor,
-            do_sample=False,  # 그리디 생성으로 일관성 향상
-            max_new_tokens=min(args.max_new_tokens, 200),  # 토큰 제한으로 긴 반복 방지
-            streamer=streamer,
-            use_cache=True,
-            pad_token_id=(tokenizer.pad_token_id if getattr(tokenizer, 'pad_token_id', None) is not None else tokenizer.eos_token_id),
-            eos_token_id=tokenizer.eos_token_id,
-            no_repeat_ngram_size=8,
-            repetition_penalty=1.3,
-            early_stopping=True,
-            stopping_criteria=[stopping_criteria],
-        )
+        # 생성 파라미터
+        gen_kwargs = {
+            'inputs': input_ids,
+            'attention_mask': attention_mask,
+            'images': image_tensor,
+            'do_sample': False,
+            'max_new_tokens': min(args.max_new_tokens, 200),
+            'streamer': streamer,
+            'use_cache': True,
+            'repetition_penalty': 1.3,
+            'early_stopping': True,
+            'stopping_criteria': [stopping_criteria],
+        }
         
-        # MIDM 전용 EOS 토큰 설정
-        eos_ids = []
-        if tokenizer.eos_token_id is not None:
-            eos_ids.append(int(tokenizer.eos_token_id))
-        try:
-            eot_id = tokenizer.convert_tokens_to_ids("<|eot_id|>")
-            if isinstance(eot_id, int) and eot_id != -1 and eot_id not in eos_ids:
-                eos_ids.append(eot_id)
-        except Exception:
-            pass
-        try:
-            end_header_id = tokenizer.convert_tokens_to_ids("<|end_header_id|>")
-            if isinstance(end_header_id, int) and end_header_id != -1 and end_header_id not in eos_ids:
-                eos_ids.append(end_header_id)
-        except Exception:
-            pass
-        if len(eos_ids) > 0:
-            gen_kwargs["eos_token_id"] = eos_ids if len(eos_ids) > 1 else eos_ids[0]
+        # 토큰 ID 설정
+        if hasattr(tokenizer, 'pad_token_id') and tokenizer.pad_token_id is not None:
+            gen_kwargs['pad_token_id'] = tokenizer.pad_token_id
+        if hasattr(tokenizer, 'eos_token_id') and tokenizer.eos_token_id is not None:
+            gen_kwargs['eos_token_id'] = tokenizer.eos_token_id
 
         with torch.inference_mode():
             output_ids = model.generate(**gen_kwargs)
 
-        outputs = tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True).strip()
-        # 마크업과 반복 정리
-        outputs = outputs.replace("### assistant", "").replace("### Assistant", "").replace("### assistance", "").replace("### assidance", "").replace("### assisistant", "").strip()
-        if outputs.startswith(": "):
-            outputs = outputs[2:].strip()
-        outputs = _dedupe_numbered_lines(outputs)
-        # 첫 번째 완전한 문단만 유지 (긴 반복 방지)
-        sentences = outputs.split('\n\n')
-        if len(sentences) > 1:
-            outputs = sentences[0].strip()
-        conv.messages[-1][-1] = outputs
+        outputs = tokenizer.decode(output_ids[0, input_ids.shape[1]:], skip_special_tokens=True)
+        outputs = clean_output(outputs)
 
         if args.debug:
             print("\n", {"prompt": prompt, "outputs": outputs}, "\n")
